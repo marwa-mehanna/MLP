@@ -1,0 +1,106 @@
+---
+title: "Writeup"
+author: "Marwa"
+date: "12/20/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+library(rattle)
+```
+## synoposis 
+
+This report is to continue on the work of the research "Qualitative Activity Recognition of Weight Lifting Exercises" done by (Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H.Read more: http://groupware.les.inf.puc-rio.br/har#ixzz6hCTkRqBE)
+The goal for this report is to train a model to predict if a person have done a correct set of movement in specific weight lifting Exercises.
+The data collected by a device such as Jawbone Up, Nike FuelBand, and Fitbit.
+
+The data was collected from Six young healthy participants whom were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions
+
+
+The goal is to predict which classe the movement is categorized to 
+Class A : exactly according to the specification .
+Class B : throwing the elbows to the front.
+Class C : lifting the dumbbell only halfway.
+Class D : lowering the dumbbell only halfway.
+Class E : throwing the hips to the front.
+
+
+## Data Processing
+
+```{r}
+#downloading Data and creating  dataframes (train,test)
+if (!file.exists("train.csv")) {
+fileURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+download.file(fileURL,destfile = "../MLP/train.csv",method = "curl")
+}
+train <- read.csv("train.csv")
+
+if (!file.exists("test.csv")) {
+fileURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(fileURL,destfile = "../MLP/test.csv",method = "curl")
+}
+test <- read.csv("test.csv")
+
+```
+
+## Training Model
+
+```{r}
+#Removing Zero Covariates 
+nsv <- nearZeroVar(train,saveMetrics = TRUE)
+nsv
+
+#taking only the variables of NZV = false as predictors
+set.seed(22)
+predictors <- which(nsv$nzv== FALSE)
+cleanedData <- train[,predictors]
+elements_2_remove = c("X", "user_name")
+cleanedData = cleanedData[!(names(cleanedData) %in% elements_2_remove)]
+intrain <-createDataPartition(y=cleanedData$classe,p=0.75,list=FALSE)
+newtrain <- cleanedData[intrain,]
+newtest <-cleanedData[-intrain,]
+
+modfit <- train(classe ~ . ,method="rpart",data=newtrain,na.action=na.exclude)
+print(modfit$finalModel)
+confusionMatrix(modfit)
+
+```
+
+## plotting
+```{r}
+fancyRpartPlot(modfit$finalModel)
+```
+## Trying different Model
+```{r}
+mod2fit <- train(classe ~ . ,method="rf",data=newtrain,Prox=TRUE,na.action=na.exclude)
+print(mod2fit)
+confusionMatrix(mod2fit)
+```
+Inspecting cross validation accuracy (mean) and variability (standard deviation)
+```{r}
+#Decision tree mean and standard deviation
+mean(modfit$resample$Accuracy)
+sd(modfit$resample$Accuracy)
+#Random Forest mean and standard deviation
+mean(mod2fit$resample$Accuracy)
+sd(mod2fit$resample$Accuracy)
+```
+## Summary of the results
+
+- The Random Forest model has the highest mean accuracy and lowest standard deviation,
+- Decision tree model preforms the worst and has the highest standard deviation.
+
+```{r}
+plot(modfit)
+plot(mod2fit)
+```
+
+## Prediction
+
+```{r}
+prediction1 <- predict(modfit, newtest)
+prediction2 <- predict(mod2fit, newtest)
+
+```
